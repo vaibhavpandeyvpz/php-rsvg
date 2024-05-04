@@ -1,0 +1,10 @@
+// $Id$
+// vim:ft=javascript
+
+ARG_ENABLE("rsvg", "enable rsvg", "no");
+
+if (PHP_RSVG != "no") {
+	EXTENSION("rsvg", "rsvg.c");
+	AC_DEFINE('HAVE_RSVG', 1 , 'whether rsvg is enabled');
+	PHP_INSTALL_HEADERS("ext/rsvg/", "php_rsvg.h");
+}
