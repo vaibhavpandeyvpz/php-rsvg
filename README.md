@@ -30,3 +30,20 @@ To try out the extension, you can run the following command
 ```shell
 php -a -d extension=modules/rsvg.so
 ```
+
+## Usage
+
+Once loaded, you can use below functions to process SVG files:
+
+```php
+<?php
+
+// read SVG file contents
+$svg_contents = file_get_contents('qrcode.svg');
+
+// convert from SVG to PNG
+$png_contents = rsvg_convert($svg_contents, 'png'); // can also pass 'eps', 'pdf' or 'svg'
+
+// can also convert b/w files directly
+rsvg_convert_file('qrcode.svg', 'qrcode.png', 'png');
+```
