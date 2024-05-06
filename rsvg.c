@@ -35,7 +35,6 @@ ZEND_END_ARG_INFO()
 static const zend_function_entry functions[] = {
     PHP_FE(rsvg_convert, arginfo_rsvg_convert)
     PHP_FE(rsvg_convert_file, arginfo_rsvg_convert_file)
-    PHP_FE_END
 };
 
 zend_module_entry rsvg_module_entry = {
@@ -63,7 +62,7 @@ static cairo_status_t cairo_write_to_file (void *ptr, const unsigned char *data,
     return CAIRO_STATUS_WRITE_ERROR;
 }
 
-static bool rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *format) {
+static int rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *format) {
     RsvgDimensionData dim;
     rsvg_handle_get_dimensions(src, &dim);
 
@@ -82,7 +81,7 @@ static bool rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string 
         surface = cairo_svg_surface_create_for_stream(cairo_write_to_file, dest,
                                                       dim.width, dim.height);
     } else {
-        return false;
+        return 1;
     }
 
     cairo_t *cr;
@@ -97,7 +96,7 @@ static bool rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string 
         cairo_destroy(cr);
         cairo_surface_destroy(surface);
 
-        return false;
+        return 1;
     }
 
     if (!format || !strcmp(ZSTR_VAL(format), "png")) {
@@ -107,7 +106,7 @@ static bool rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string 
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
 
-    return true;
+    return 0;
 }
 
 PHP_FUNCTION(rsvg_convert) {
@@ -138,10 +137,10 @@ PHP_FUNCTION(rsvg_convert) {
     FILE *dest;
     dest = tmpfile();
 
-    bool ok;
-    ok = rsvg_convert_file_internal(handle, dest, format);
+    int result;
+    result = rsvg_convert_file_internal(handle, dest, format);
 
-    if (ok) {
+    if (result == 0) {
         fseek(dest, 0, SEEK_END);
 
         long size;
@@ -198,8 +197,8 @@ PHP_FUNCTION(rsvg_convert_file) {
     FILE *dest_file;
     dest_file = fopen(ZSTR_VAL(dest), "wb");
 
-    bool ok;
-    ok = rsvg_convert_file_internal(handle, dest_file, format);
+    bool result;
+    result = rsvg_convert_file_internal(handle, dest_file, format);
 
     fclose(dest_file);
 
@@ -210,7 +209,7 @@ PHP_FUNCTION(rsvg_convert_file) {
         g_error_free(error);
     }
 
-    RETVAL_BOOL(ok ? 1 : 0);
+    RETVAL_BOOL(result == 0 ? 1 : 0);
 }
 
 #endif
