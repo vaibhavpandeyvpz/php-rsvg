@@ -69,20 +69,19 @@ static bool rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string 
 
     cairo_surface_t *surface;
 
-    if (!format || !strcmp(format->val, "png")) {
+    if (!format || !strcmp(ZSTR_VAL(format), "png")) {
         surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
                                              dim.width, dim.height);
-    } else if (!strcmp(format->val, "pdf")) {
+    } else if (!strcmp(ZSTR_VAL(format), "pdf")) {
         surface = cairo_pdf_surface_create_for_stream(cairo_write_to_file, dest,
                                                       dim.width, dim.height);
-    } else if (!strcmp(format->val, "eps")) {
+    } else if (!strcmp(ZSTR_VAL(format), "eps")) {
         surface = cairo_ps_surface_create_for_stream(cairo_write_to_file, dest,
                                                      dim.width, dim.height);
-    } else if (!strcmp(format->val, "svg")) {
+    } else if (!strcmp(ZSTR_VAL(format), "svg")) {
         surface = cairo_svg_surface_create_for_stream(cairo_write_to_file, dest,
                                                       dim.width, dim.height);
     } else {
-        fclose(dest);
         return false;
     }
 
@@ -98,11 +97,10 @@ static bool rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string 
         cairo_destroy(cr);
         cairo_surface_destroy(surface);
 
-        fclose(dest);
         return false;
     }
 
-    if (!format || !strcmp(format->val, "png")) {
+    if (!format || !strcmp(ZSTR_VAL(format), "png")) {
         cairo_surface_write_to_png_stream(surface, cairo_write_to_file, dest);
     }
 
@@ -131,6 +129,9 @@ PHP_FUNCTION(rsvg_convert) {
     if (error != NULL) {
         rsvg_term();
         g_error_free(error);
+
+        zend_string_release(src);
+        zend_string_release(format);
 
         RETVAL_BOOL(0);
 
@@ -194,6 +195,9 @@ PHP_FUNCTION(rsvg_convert_file) {
     if (error != NULL) {
         rsvg_term();
         g_error_free(error);
+
+        zend_string_release(src);
+        zend_string_release(format);
 
         RETVAL_BOOL(0);
 
