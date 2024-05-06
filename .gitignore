@@ -33,5 +33,6 @@ tests/*
 configure.ac
 /cmake-*
 /run-php
+/*.dep
 /qrcode.*
 !/qrcode.svg

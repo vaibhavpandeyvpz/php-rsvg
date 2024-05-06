@@ -35,6 +35,7 @@ ZEND_END_ARG_INFO()
 static const zend_function_entry functions[] = {
     PHP_FE(rsvg_convert, arginfo_rsvg_convert)
     PHP_FE(rsvg_convert_file, arginfo_rsvg_convert_file)
+    PHP_FE_END
 };
 
 zend_module_entry rsvg_module_entry = {
@@ -62,7 +63,7 @@ static cairo_status_t cairo_write_to_file (void *ptr, const unsigned char *data,
     return CAIRO_STATUS_WRITE_ERROR;
 }
 
-static int rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *format) {
+static php_rsvg_status_t rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *format) {
     RsvgDimensionData dim;
     rsvg_handle_get_dimensions(src, &dim);
 
@@ -81,7 +82,7 @@ static int rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *
         surface = cairo_svg_surface_create_for_stream(cairo_write_to_file, dest,
                                                       dim.width, dim.height);
     } else {
-        return 1;
+        return PHP_RSVG_ERR;
     }
 
     cairo_t *cr;
@@ -96,7 +97,7 @@ static int rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *
         cairo_destroy(cr);
         cairo_surface_destroy(surface);
 
-        return 1;
+        return PHP_RSVG_ERR;
     }
 
     if (!format || !strcmp(ZSTR_VAL(format), "png")) {
@@ -106,7 +107,7 @@ static int rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
 
-    return 0;
+    return PHP_RSVG_OK;
 }
 
 PHP_FUNCTION(rsvg_convert) {
@@ -117,6 +118,9 @@ PHP_FUNCTION(rsvg_convert) {
         Z_PARAM_STR(src)
         Z_PARAM_STR(format)
     ZEND_PARSE_PARAMETERS_END();
+
+    zend_string_addref(src);
+    zend_string_addref(format);
 
     rsvg_init();
     rsvg_set_default_dpi(72.0);
@@ -137,10 +141,10 @@ PHP_FUNCTION(rsvg_convert) {
     FILE *dest;
     dest = tmpfile();
 
-    int result;
+    php_rsvg_status_t result;
     result = rsvg_convert_file_internal(handle, dest, format);
 
-    if (result == 0) {
+    if (result == PHP_RSVG_OK) {
         fseek(dest, 0, SEEK_END);
 
         long size;
@@ -178,6 +182,10 @@ PHP_FUNCTION(rsvg_convert_file) {
         Z_PARAM_STR(format)
     ZEND_PARSE_PARAMETERS_END();
 
+    zend_string_addref(src);
+    zend_string_addref(dest);
+    zend_string_addref(format);
+
     rsvg_init();
     rsvg_set_default_dpi(72.0);
 
@@ -197,7 +205,7 @@ PHP_FUNCTION(rsvg_convert_file) {
     FILE *dest_file;
     dest_file = fopen(ZSTR_VAL(dest), "wb");
 
-    bool result;
+    php_rsvg_status_t result;
     result = rsvg_convert_file_internal(handle, dest_file, format);
 
     fclose(dest_file);
@@ -209,7 +217,11 @@ PHP_FUNCTION(rsvg_convert_file) {
         g_error_free(error);
     }
 
-    RETVAL_BOOL(result == 0 ? 1 : 0);
+    if (result == PHP_RSVG_OK) {
+        RETVAL_TRUE;
+    } else {
+        RETVAL_FALSE;
+    }
 }
 
 #endif
