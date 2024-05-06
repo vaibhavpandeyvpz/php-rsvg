@@ -197,6 +197,7 @@ PHP_FUNCTION(rsvg_convert_file) {
         g_error_free(error);
 
         zend_string_release(src);
+        zend_string_release(dest);
         zend_string_release(format);
 
         RETVAL_BOOL(0);
