@@ -129,7 +129,11 @@ PHP_FUNCTION(rsvg_convert) {
 
     handle = rsvg_handle_new_from_data(ZSTR_VAL(src), ZSTR_LEN(src), &error);
     if (error != NULL) {
+        rsvg_term();
+        g_error_free(error);
+
         RETVAL_BOOL(0);
+
         return;
     }
 
@@ -158,6 +162,13 @@ PHP_FUNCTION(rsvg_convert) {
 
     fclose(dest);
 
+    rsvg_handle_close(handle, &error);
+    rsvg_term();
+    g_object_unref(handle);
+    if (error != NULL) {
+        g_error_free(error);
+    }
+
     zend_string_release(src);
     zend_string_release(format);
 }
@@ -181,7 +192,11 @@ PHP_FUNCTION(rsvg_convert_file) {
 
     handle = rsvg_handle_new_from_file(ZSTR_VAL(src), &error);
     if (error != NULL) {
+        rsvg_term();
+        g_error_free(error);
+
         RETVAL_BOOL(0);
+
         return;
     }
 
@@ -192,6 +207,13 @@ PHP_FUNCTION(rsvg_convert_file) {
     ok = rsvg_convert_file_internal(handle, dest_file, format);
 
     fclose(dest_file);
+
+    rsvg_handle_close(handle, &error);
+    rsvg_term();
+    g_object_unref(handle);
+    if (error != NULL) {
+        g_error_free(error);
+    }
 
     zend_string_release(src);
     zend_string_release(dest);
