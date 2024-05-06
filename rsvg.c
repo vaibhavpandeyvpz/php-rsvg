@@ -130,9 +130,6 @@ PHP_FUNCTION(rsvg_convert) {
         rsvg_term();
         g_error_free(error);
 
-        zend_string_release(src);
-        zend_string_release(format);
-
         RETVAL_BOOL(0);
 
         return;
@@ -169,9 +166,6 @@ PHP_FUNCTION(rsvg_convert) {
     if (error != NULL) {
         g_error_free(error);
     }
-
-    zend_string_release(src);
-    zend_string_release(format);
 }
 
 PHP_FUNCTION(rsvg_convert_file) {
@@ -196,10 +190,6 @@ PHP_FUNCTION(rsvg_convert_file) {
         rsvg_term();
         g_error_free(error);
 
-        zend_string_release(src);
-        zend_string_release(dest);
-        zend_string_release(format);
-
         RETVAL_BOOL(0);
 
         return;
@@ -219,10 +209,6 @@ PHP_FUNCTION(rsvg_convert_file) {
     if (error != NULL) {
         g_error_free(error);
     }
-
-    zend_string_release(src);
-    zend_string_release(dest);
-    zend_string_release(format);
 
     RETVAL_BOOL(ok ? 1 : 0);
 }
