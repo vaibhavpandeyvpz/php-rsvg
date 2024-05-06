@@ -42,8 +42,11 @@ Once loaded, you can use below functions to process SVG files:
 $svg_contents = file_get_contents('qrcode.svg');
 
 // convert from SVG to PNG
-$png_contents = rsvg_convert($svg_contents, 'png'); // can also pass 'eps', 'pdf' or 'svg'
+$png_contents = rsvg_convert($svg_contents, 'png', '#ffffff'); // can also pass 'eps', 'pdf' or 'svg'
 
 // can also convert b/w files directly
-rsvg_convert_file('qrcode.svg', 'qrcode.png', 'png');
+rsvg_convert_file('qrcode.svg', 'qrcode.png', 'png', '#ffffff');
 ```
+
+In above examples, `#ffffff` is the background color to be used for output.
+To output an image with transparent background, supply an empty string i.e., `''`.

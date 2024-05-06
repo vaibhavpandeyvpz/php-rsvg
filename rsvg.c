@@ -21,15 +21,17 @@
 
 #if HAVE_RSVG
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rsvg_convert, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rsvg_convert, 0, 0, 3)
     ZEND_ARG_TYPE_INFO(0, src, IS_STRING, 0)
     ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
+    ZEND_ARG_TYPE_INFO(0, bg, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rsvg_convert_file, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rsvg_convert_file, 0, 0, 4)
     ZEND_ARG_TYPE_INFO(0, src, IS_STRING, 0)
     ZEND_ARG_TYPE_INFO(0, dest, IS_STRING, 0)
     ZEND_ARG_TYPE_INFO(0, format, IS_STRING, 0)
+    ZEND_ARG_TYPE_INFO(0, bg, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
@@ -63,7 +65,35 @@ static cairo_status_t cairo_write_to_file (void *ptr, const unsigned char *data,
     return CAIRO_STATUS_WRITE_ERROR;
 }
 
-static php_rsvg_status_t rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *format) {
+static gint32 rsvg_css_parse_color(const char *str) {
+    gint val = 0;
+
+    int i;
+    for (i = 1; str[i]; i++) {
+        int hexval;
+        if (str[i] >= '0' && str[i] <= '9')
+            hexval = str[i] - '0';
+        else if (str[i] >= 'A' && str[i] <= 'F')
+            hexval = str[i] - 'A' + 10;
+        else if (str[i] >= 'a' && str[i] <= 'f')
+            hexval = str[i] - 'a' + 10;
+        else
+            break;
+        val = (val << 4) + hexval;
+    }
+    /* handle #rgb case */
+    if (i == 4) {
+        val = ((val & 0xf00) << 8) | ((val & 0x0f0) << 4) | (val & 0x00f);
+        val |= val << 4;
+    }
+
+    //NOLINTNEXTLINE(*-narrowing-conversions)
+    val |= 0xff000000; /* opaque */
+
+    return val;
+}
+
+static php_rsvg_status_t rsvg_convert_file_internal(RsvgHandle *src, FILE *dest, zend_string *format, zend_string *bg) {
     RsvgDimensionData dim;
     rsvg_handle_get_dimensions(src, &dim);
 
@@ -87,6 +117,18 @@ static php_rsvg_status_t rsvg_convert_file_internal(RsvgHandle *src, FILE *dest,
 
     cairo_t *cr;
     cr = cairo_create(surface);
+
+    if (!bg || ZSTR_LEN(bg) != 0) {
+        gint32 bg_color;
+        bg_color = rsvg_css_parse_color(ZSTR_VAL(bg));
+        cairo_set_source_rgb(
+                cr,
+                ((bg_color >> 16) & 0xff) / 255.0,
+                ((bg_color >> 8) & 0xff) / 255.0,
+                ((bg_color >> 0) & 0xff) / 255.0);
+        cairo_rectangle(cr, 0, 0, dim.width, dim.height);
+        cairo_fill(cr);
+    }
 
     rsvg_handle_render_cairo(src, cr);
 
@@ -113,14 +155,17 @@ static php_rsvg_status_t rsvg_convert_file_internal(RsvgHandle *src, FILE *dest,
 PHP_FUNCTION(rsvg_convert) {
     zend_string *src;
     zend_string *format;
+    zend_string *bg;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 3, 3)
         Z_PARAM_STR(src)
         Z_PARAM_STR(format)
+        Z_PARAM_STR(bg)
     ZEND_PARSE_PARAMETERS_END();
 
     zend_string_addref(src);
     zend_string_addref(format);
+    zend_string_addref(bg);
 
     rsvg_init();
     rsvg_set_default_dpi(72.0);
@@ -142,7 +187,7 @@ PHP_FUNCTION(rsvg_convert) {
     dest = tmpfile();
 
     php_rsvg_status_t result;
-    result = rsvg_convert_file_internal(handle, dest, format);
+    result = rsvg_convert_file_internal(handle, dest, format, bg);
 
     if (result == PHP_RSVG_OK) {
         fseek(dest, 0, SEEK_END);
@@ -175,16 +220,19 @@ PHP_FUNCTION(rsvg_convert_file) {
     zend_string *src;
     zend_string *dest;
     zend_string *format;
+    zend_string *bg;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 3, 3)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 4, 4)
         Z_PARAM_STR(src)
         Z_PARAM_STR(dest)
         Z_PARAM_STR(format)
+        Z_PARAM_STR(bg)
     ZEND_PARSE_PARAMETERS_END();
 
     zend_string_addref(src);
     zend_string_addref(dest);
     zend_string_addref(format);
+    zend_string_addref(bg);
 
     rsvg_init();
     rsvg_set_default_dpi(72.0);
@@ -206,7 +254,7 @@ PHP_FUNCTION(rsvg_convert_file) {
     dest_file = fopen(ZSTR_VAL(dest), "wb");
 
     php_rsvg_status_t result;
-    result = rsvg_convert_file_internal(handle, dest_file, format);
+    result = rsvg_convert_file_internal(handle, dest_file, format, bg);
 
     fclose(dest_file);
 
